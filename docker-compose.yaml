@@ -1,3 +1,6 @@
+# Postgresql replication: https://github.com/bitnami/containers/blob/main/bitnami/postgresql/docker-compose-replication.yml
+# Bitnami image: https://hub.docker.com/r/bitnami/postgresql
+
 x-pg-env: &pg-env
   POSTGRESQL_REPLICATION_USER: ${POSTGRESQL_REPLICATION_USER}
   POSTGRESQL_REPLICATION_PASSWORD: ${POSTGRESQL_REPLICATION_PASSWORD}
