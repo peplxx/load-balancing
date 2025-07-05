@@ -7,16 +7,42 @@ app = Flask(__name__)
 
 class DatabaseSettings(BaseSettings, env_prefix="DB_"):
     host: str
-    port: int
+    write_port: int
+    read_port: int
     user: str
     password: str
     dbname: str
 
+class DatabaseConnector(DatabaseSettings):
+    @property
+    def common_credentials(self):
+        return {
+            "user":self.user,
+            "password":self.password,
+            "dbname":self.dbname,
+            "host":self.host
+        }
+    @property
+    def read_connection(self):
+        read_credentials = self.common_credentials
+        read_credentials.update({
+            "port":self.read_port
+        })
+        return psycopg2.connect(**read_credentials)
+    
+    @property
+    def write_connection(self):
+        write_credentials = self.common_credentials
+        write_credentials.update({
+            "port":self.read_port
+        })
+        return psycopg2.connect(**write_credentials)
+
 @app.route('/')
 def index():
-    db_settings = DatabaseSettings()
+    db_connector = DatabaseConnector()
     try:
-        conn = psycopg2.connect(**db_settings.model_dump())
+        conn = db_connector.read_connection
         cur = conn.cursor()
         cur.execute("SELECT pg_is_in_recovery(), inet_server_addr()")
         row = cur.fetchone()

@@ -27,17 +27,18 @@ x-postgres-common: &postgres-common
     retries: 5
 
 x-app-env: &app-env
-  DB_HOST: postgres-master
-  DB_PORT: 5432
   DB_DBNAME: ${POSTGRESQL_DATABASE}
   DB_USER: ${POSTGRESQL_USER}
   DB_PASSWORD: ${POSTGRESQL_PASSWORD}
+  DB_HOST: haproxy
+  DB_WRITE_PORT: 5432
+  DB_READ_PORT: 5433
 
 x-app-common: &app-common
+  restart: unless-stopped
   build: app/
   depends_on:
-    postgres-master:
-      condition: service_healthy
+    - haproxy
   networks:
     - default
 
@@ -58,6 +59,23 @@ services:
     ports:
       - "8082:8082"
 
+  haproxy:
+    image: haproxy:3.2
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "5433:5433"   # Read-only endpoint
+      - "5432:5432"   # Write-only endpoint
+    networks:
+      - default
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      postgres-slave1:
+        condition: service_healthy
+      postgres-slave2:
+        condition: service_healthy
+
   postgres-master:
     <<: *postgres-common
     # pg_hba: https://www.postgresql.org/docs/14/auth-pg-hba-conf.html
@@ -65,8 +83,6 @@ services:
       <<: *pg-env
       POSTGRESQL_REPLICATION_MODE: master
       POSTGRES_HOST_AUTH_METHOD: "md5"
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-master-data:/var/lib/postgresql/data
   
